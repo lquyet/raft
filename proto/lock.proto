@@ -1,0 +1,11 @@
+syntax = "proto3";
+package proto;
+
+option go_package = "github.com/lquyet/distributed-lock/proto";
+
+import "models.proto";
+
+service LockService {
+  rpc AcquireLock(AcquireLockRequest) returns (AcquireLockResponse);
+  rpc ReleaseLock(ReleaseLockRequest) returns (ReleaseLockResponse);
+}

@@ -1,0 +1,17 @@
+syntax = "proto3";
+package proto;
+option go_package = "github.com/lquyet/distributed-lock/proto";
+
+message AcquireLockRequest {
+
+}
+
+message AcquireLockResponse {
+}
+
+message ReleaseLockRequest {
+
+}
+
+message ReleaseLockResponse {
+}
