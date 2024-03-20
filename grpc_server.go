@@ -19,12 +19,12 @@ type GrpcLockServer struct {
 	raftNode *RaftNode
 }
 
-func (g GrpcLockServer) AcquireLock(ctx context.Context, request *proto.AcquireLockRequest) (*proto.AcquireLockResponse, error) {
+func (g *GrpcLockServer) AcquireLock(ctx context.Context, request *proto.AcquireLockRequest) (*proto.AcquireLockResponse, error) {
 	fmt.Println("Got AcquireLock request")
 	return &proto.AcquireLockResponse{LockId: 1}, nil
 }
 
-func (g GrpcLockServer) ReleaseLock(ctx context.Context, request *proto.ReleaseLockRequest) (*proto.ReleaseLockResponse, error) {
+func (g *GrpcLockServer) ReleaseLock(ctx context.Context, request *proto.ReleaseLockRequest) (*proto.ReleaseLockResponse, error) {
 	fmt.Println("Got ReleaseLock request")
 	return &proto.ReleaseLockResponse{LockId: 1}, nil
 }

@@ -17,11 +17,6 @@ type GrpcLockClient struct {
 	// Should add logger later below
 }
 
-func (l *GrpcLockClient) RefreshLock(ctx context.Context, resource string, ttl time.Duration) error {
-	//TODO implement me
-	panic("implement me")
-}
-
 func NewGrpcLockClient(address string, timeout uint32) *GrpcLockClient {
 	return &GrpcLockClient{
 		nodeAddress: address,
