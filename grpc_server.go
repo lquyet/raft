@@ -20,12 +20,14 @@ type GrpcLockServer struct {
 }
 
 func (g *GrpcLockServer) AcquireLock(ctx context.Context, request *proto.AcquireLockRequest) (*proto.AcquireLockResponse, error) {
-	fmt.Println("Got AcquireLock request")
+	fmt.Println("----- Got AcquireLock request -----")
+	fmt.Println("LockId: ", request.LockId)
 	return &proto.AcquireLockResponse{LockId: 1}, nil
 }
 
 func (g *GrpcLockServer) ReleaseLock(ctx context.Context, request *proto.ReleaseLockRequest) (*proto.ReleaseLockResponse, error) {
-	fmt.Println("Got ReleaseLock request")
+	fmt.Println("----- Got ReleaseLock request -----")
+	fmt.Println("LockId: ", request.LockId)
 	return &proto.ReleaseLockResponse{LockId: 1}, nil
 }
 
