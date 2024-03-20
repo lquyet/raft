@@ -3,15 +3,17 @@ package proto;
 option go_package = "github.com/lquyet/distributed-lock/proto";
 
 message AcquireLockRequest {
-
+  int32 lockId = 1;
 }
 
 message AcquireLockResponse {
+  int32 lockId = 1;
 }
 
 message ReleaseLockRequest {
-
+  int32 lockId = 1;
 }
 
 message ReleaseLockResponse {
+  int32 lockId = 1;
 }

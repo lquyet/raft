@@ -1,4 +1,4 @@
 package distributed_lock
 
-type Config struct {
+type RaftNode struct {
 }
