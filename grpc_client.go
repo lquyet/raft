@@ -9,12 +9,6 @@ import (
 	"time"
 )
 
-//type ILockClientAPI interface {
-//	AcquireLock(ctx context.Context, resource string, ttl time.Duration) error
-//	ReleaseLock(ctx context.Context, resource string, ttl time.Duration) error
-//	RefreshLock(ctx context.Context, resource string, ttl time.Duration) error
-//}
-
 type GrpcLockClient struct {
 	// nodeAddress is the address of a particular node that this client keeps the connection to
 	nodeAddress string
@@ -27,8 +21,6 @@ func (l *GrpcLockClient) RefreshLock(ctx context.Context, resource string, ttl t
 	//TODO implement me
 	panic("implement me")
 }
-
-//var _ ILockClientAPI = &GrpcLockClient{}
 
 func NewGrpcLockClient(address string, timeout uint32) *GrpcLockClient {
 	return &GrpcLockClient{
