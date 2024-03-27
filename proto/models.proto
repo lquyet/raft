@@ -17,3 +17,40 @@ message ReleaseLockRequest {
 message ReleaseLockResponse {
   int32 lockId = 1;
 }
+
+message AppendEntriesRequest {
+  uint32 term = 1;
+  uint32 leaderId = 2;
+  uint32 prevLogIndex = 3;
+  uint32 prevLogTerm = 4;
+  repeated string entries = 5;
+  uint32 leaderCommit = 6;
+}
+
+message AppendEntriesResponse {
+  uint32 term = 1;
+  bool success = 2;
+}
+
+message RequestVoteRequest {
+  uint32 term = 1;
+  uint32 candidateId = 2;
+  uint32 lastLogIndex = 3;
+  uint32 lastLogTerm = 4;
+}
+
+message RequestVoteResponse {
+  uint32 term = 1;
+  bool voteGranted = 2;
+}
+
+message JoinClusterRequest {
+  uint32 id = 1;
+  string addr = 2;
+}
+
+message JoinClusterResponse {
+  uint32 id = 1;
+  repeated uint32 ids = 2;
+  repeated string addrs = 3;
+}

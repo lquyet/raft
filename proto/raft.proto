@@ -1,0 +1,12 @@
+syntax = "proto3";
+package proto;
+
+option go_package = "github.com/lquyet/distributed-lock/proto";
+
+import "models.proto";
+
+service RaftService {
+  rpc appendEntries(AppendEntriesRequest) returns (AppendEntriesResponse);
+  rpc requestVote(RequestVoteRequest) returns (RequestVoteResponse);
+  rpc joinCluster(JoinClusterRequest) returns (JoinClusterResponse);
+}
