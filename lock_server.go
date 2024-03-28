@@ -2,6 +2,7 @@ package distributed_lock
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"net"
 
@@ -16,11 +17,26 @@ type Server struct {
 	lis   net.Listener // underlying connection to gRPC Server
 	c     raft.RaftServiceClient
 	r     *RaftService
+	rc    *ClientCommService
 	ready chan bool // only required to hold off starting server until Serve is called
+
+}
+
+func (s *Server) AcquireLock(ctx context.Context, request *raft.AcquireLockRequest) (*raft.AcquireLockResponse, error) {
+	fmt.Println("----- Got AcquireLock request -----")
+	fmt.Println("LockId: ", request.LockId)
+	return &raft.AcquireLockResponse{LockId: 1}, nil
+}
+
+func (s *Server) ReleaseLock(ctx context.Context, request *raft.ReleaseLockRequest) (*raft.ReleaseLockResponse, error) {
+	fmt.Println("----- Got ReleaseLock request -----")
+	fmt.Println("LockId: ", request.LockId)
+	return &raft.ReleaseLockResponse{LockId: 1}, nil
 }
 
 // New is used to initialise a new server
 func New(addr string, join string, id uint32, et uint32, hb uint32, t uint32) *Server {
+	// For node-node communication
 	s := new(Server)
 	s.ready = make(chan bool)
 	s.id = id
@@ -30,6 +46,11 @@ func New(addr string, join string, id uint32, et uint32, hb uint32, t uint32) *S
 	}
 	s.r = NewRaftService(id, &s.c, et, hb, t, s.ready)
 	raft.RegisterRaftServiceServer(s.s, s.r)
+
+	// For client-node communication
+	rc := NewClientCommService()
+	raft.RegisterLockServiceServer(s.s, rc)
+
 	return s
 }
 

@@ -13,29 +13,24 @@ import (
 	"time"
 )
 
-type GrpcLockServer struct {
+type ClientCommService struct {
 	proto.UnimplementedLockServiceServer
-	// node the reference to its own raft node to do consensus
-	raftNode *RaftNode
 }
 
-func (g *GrpcLockServer) AcquireLock(ctx context.Context, request *proto.AcquireLockRequest) (*proto.AcquireLockResponse, error) {
+func (g *ClientCommService) AcquireLock(ctx context.Context, request *proto.AcquireLockRequest) (*proto.AcquireLockResponse, error) {
 	fmt.Println("----- Got AcquireLock request -----")
 	fmt.Println("LockId: ", request.LockId)
 	return &proto.AcquireLockResponse{LockId: 1}, nil
 }
 
-func (g *GrpcLockServer) ReleaseLock(ctx context.Context, request *proto.ReleaseLockRequest) (*proto.ReleaseLockResponse, error) {
+func (g *ClientCommService) ReleaseLock(ctx context.Context, request *proto.ReleaseLockRequest) (*proto.ReleaseLockResponse, error) {
 	fmt.Println("----- Got ReleaseLock request -----")
 	fmt.Println("LockId: ", request.LockId)
 	return &proto.ReleaseLockResponse{LockId: 1}, nil
 }
 
-func NewGrpcLockServer(raftNode *RaftNode) (*GrpcLockServer, *grpc.Server) {
-	baseServer := grpc.NewServer()
-	gLockServer := &GrpcLockServer{raftNode: raftNode}
-	proto.RegisterLockServiceServer(baseServer, gLockServer)
-	return gLockServer, baseServer
+func NewClientCommService() *ClientCommService {
+	return &ClientCommService{}
 }
 
 func StartServer(baseServer *grpc.Server) {
