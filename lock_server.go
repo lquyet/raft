@@ -2,7 +2,6 @@ package distributed_lock
 
 import (
 	"context"
-	"fmt"
 	"log"
 	"net"
 
@@ -20,18 +19,6 @@ type Server struct {
 	rc    *ClientCommService
 	ready chan bool // only required to hold off starting server until Serve is called
 
-}
-
-func (s *Server) AcquireLock(ctx context.Context, request *raft.AcquireLockRequest) (*raft.AcquireLockResponse, error) {
-	fmt.Println("----- Got AcquireLock request -----")
-	fmt.Println("LockId: ", request.LockId)
-	return &raft.AcquireLockResponse{LockId: 1}, nil
-}
-
-func (s *Server) ReleaseLock(ctx context.Context, request *raft.ReleaseLockRequest) (*raft.ReleaseLockResponse, error) {
-	fmt.Println("----- Got ReleaseLock request -----")
-	fmt.Println("LockId: ", request.LockId)
-	return &raft.ReleaseLockResponse{LockId: 1}, nil
 }
 
 // New is used to initialise a new server
