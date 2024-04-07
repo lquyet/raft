@@ -2,6 +2,7 @@ package distributed_lock
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"math/rand"
 	"strings"
@@ -420,6 +421,38 @@ func (rs *RaftService) sendHeartbeatRoutine(nodeID uint32, client raft.RaftServi
 	if resp.Term > req.Term {
 		log.Printf("Node-%v's heartbeat term different than current(%v) from Node-%v: %v", rs.NodeID, req.Term, nodeID, resp.Term)
 		rs.become(Follower, resp.Term)
+	}
+}
+
+func (rs *RaftService) propagateData(log string) {
+	rs.mx.Lock()
+	term := rs.CurrentTerm
+	rs.mx.Unlock()
+
+	// For each peer, send AppendEntriesRequest with empty "Entries"
+	for nodeID, peer := range rs.Peers {
+		go rs.sendHeartbeatRoutine(nodeID, peer.Client, &raft.AppendEntriesRequest{
+			Term:         term,
+			LeaderId:     rs.NodeID,
+			LeaderCommit: rs.CommitIndex,
+			Entries:      []string{},
+		})
+
+		p := peer
+		go func() {
+			fmt.Println("Sending log to ", p.Addr)
+			resp, err := p.Client.AppendEntries(context.Background(), &raft.AppendEntriesRequest{
+				Term:         term,
+				LeaderId:     rs.NodeID,
+				LeaderCommit: rs.CommitIndex,
+				Entries:      []string{log},
+			})
+			if err != nil {
+				fmt.Println("Error sending log")
+				return
+			}
+			fmt.Println("Response: ", resp)
+		}()
 	}
 }
 

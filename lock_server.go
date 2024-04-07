@@ -17,7 +17,8 @@ type Server struct {
 	c     raft.RaftServiceClient
 	r     *RaftService
 	rc    *ClientCommService
-	ready chan bool // only required to hold off starting server until Serve is called
+	comC  chan string // the communication channel between client and node
+	ready chan bool   // only required to hold off starting server until Serve is called
 
 }
 
@@ -35,9 +36,10 @@ func New(addr string, join string, id uint32, et uint32, hb uint32, t uint32) *S
 	raft.RegisterRaftServiceServer(s.s, s.r)
 
 	// For client-node communication
-	rc := NewClientCommService()
-	raft.RegisterLockServiceServer(s.s, rc)
-
+	comC := make(chan string, 10)
+	rc := NewClientCommService(comC)
+	s.comC = comC
+	raft.RegisterClientServiceServer(s.s, rc)
 	return s
 }
 
@@ -61,9 +63,22 @@ func (s *Server) Serve(join string) {
 		go s.join(join)
 	}
 
+	go func() {
+		for {
+			select {
+			case msg := <-s.comC:
+				s.processMsg(msg)
+			}
+		}
+	}()
+
 	if err := s.s.Serve(s.lis); err != nil {
 		log.Fatalf("server failed to server: %v", err)
 	}
+}
+
+func (s *Server) processMsg(msg string) {
+	s.r.propagateData(msg)
 }
 
 func (s *Server) newClient(join string) raft.RaftServiceClient {

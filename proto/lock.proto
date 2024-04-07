@@ -5,7 +5,7 @@ option go_package = "github.com/lquyet/distributed-lock/proto";
 
 import "models.proto";
 
-service LockService {
+service ClientService {
   rpc AcquireLock(AcquireLockRequest) returns (AcquireLockResponse);
   rpc ReleaseLock(ReleaseLockRequest) returns (ReleaseLockResponse);
 }

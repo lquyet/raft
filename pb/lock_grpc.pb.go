@@ -18,122 +18,122 @@ import (
 // Requires gRPC-Go v1.32.0 or later.
 const _ = grpc.SupportPackageIsVersion7
 
-// LockServiceClient is the client API for LockService service.
+// ClientServiceClient is the client API for ClientService service.
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
-type LockServiceClient interface {
+type ClientServiceClient interface {
 	AcquireLock(ctx context.Context, in *AcquireLockRequest, opts ...grpc.CallOption) (*AcquireLockResponse, error)
 	ReleaseLock(ctx context.Context, in *ReleaseLockRequest, opts ...grpc.CallOption) (*ReleaseLockResponse, error)
 }
 
-type lockServiceClient struct {
+type clientServiceClient struct {
 	cc grpc.ClientConnInterface
 }
 
-func NewLockServiceClient(cc grpc.ClientConnInterface) LockServiceClient {
-	return &lockServiceClient{cc}
+func NewClientServiceClient(cc grpc.ClientConnInterface) ClientServiceClient {
+	return &clientServiceClient{cc}
 }
 
-func (c *lockServiceClient) AcquireLock(ctx context.Context, in *AcquireLockRequest, opts ...grpc.CallOption) (*AcquireLockResponse, error) {
+func (c *clientServiceClient) AcquireLock(ctx context.Context, in *AcquireLockRequest, opts ...grpc.CallOption) (*AcquireLockResponse, error) {
 	out := new(AcquireLockResponse)
-	err := c.cc.Invoke(ctx, "/proto.LockService/AcquireLock", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/proto.ClientService/AcquireLock", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (c *lockServiceClient) ReleaseLock(ctx context.Context, in *ReleaseLockRequest, opts ...grpc.CallOption) (*ReleaseLockResponse, error) {
+func (c *clientServiceClient) ReleaseLock(ctx context.Context, in *ReleaseLockRequest, opts ...grpc.CallOption) (*ReleaseLockResponse, error) {
 	out := new(ReleaseLockResponse)
-	err := c.cc.Invoke(ctx, "/proto.LockService/ReleaseLock", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/proto.ClientService/ReleaseLock", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-// LockServiceServer is the server API for LockService service.
-// All implementations must embed UnimplementedLockServiceServer
+// ClientServiceServer is the server API for ClientService service.
+// All implementations must embed UnimplementedClientServiceServer
 // for forward compatibility
-type LockServiceServer interface {
+type ClientServiceServer interface {
 	AcquireLock(context.Context, *AcquireLockRequest) (*AcquireLockResponse, error)
 	ReleaseLock(context.Context, *ReleaseLockRequest) (*ReleaseLockResponse, error)
-	mustEmbedUnimplementedLockServiceServer()
+	mustEmbedUnimplementedClientServiceServer()
 }
 
-// UnimplementedLockServiceServer must be embedded to have forward compatible implementations.
-type UnimplementedLockServiceServer struct {
+// UnimplementedClientServiceServer must be embedded to have forward compatible implementations.
+type UnimplementedClientServiceServer struct {
 }
 
-func (UnimplementedLockServiceServer) AcquireLock(context.Context, *AcquireLockRequest) (*AcquireLockResponse, error) {
+func (UnimplementedClientServiceServer) AcquireLock(context.Context, *AcquireLockRequest) (*AcquireLockResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method AcquireLock not implemented")
 }
-func (UnimplementedLockServiceServer) ReleaseLock(context.Context, *ReleaseLockRequest) (*ReleaseLockResponse, error) {
+func (UnimplementedClientServiceServer) ReleaseLock(context.Context, *ReleaseLockRequest) (*ReleaseLockResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ReleaseLock not implemented")
 }
-func (UnimplementedLockServiceServer) mustEmbedUnimplementedLockServiceServer() {}
+func (UnimplementedClientServiceServer) mustEmbedUnimplementedClientServiceServer() {}
 
-// UnsafeLockServiceServer may be embedded to opt out of forward compatibility for this service.
-// Use of this interface is not recommended, as added methods to LockServiceServer will
+// UnsafeClientServiceServer may be embedded to opt out of forward compatibility for this service.
+// Use of this interface is not recommended, as added methods to ClientServiceServer will
 // result in compilation errors.
-type UnsafeLockServiceServer interface {
-	mustEmbedUnimplementedLockServiceServer()
+type UnsafeClientServiceServer interface {
+	mustEmbedUnimplementedClientServiceServer()
 }
 
-func RegisterLockServiceServer(s grpc.ServiceRegistrar, srv LockServiceServer) {
-	s.RegisterService(&LockService_ServiceDesc, srv)
+func RegisterClientServiceServer(s grpc.ServiceRegistrar, srv ClientServiceServer) {
+	s.RegisterService(&ClientService_ServiceDesc, srv)
 }
 
-func _LockService_AcquireLock_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+func _ClientService_AcquireLock_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(AcquireLockRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(LockServiceServer).AcquireLock(ctx, in)
+		return srv.(ClientServiceServer).AcquireLock(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/proto.LockService/AcquireLock",
+		FullMethod: "/proto.ClientService/AcquireLock",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(LockServiceServer).AcquireLock(ctx, req.(*AcquireLockRequest))
+		return srv.(ClientServiceServer).AcquireLock(ctx, req.(*AcquireLockRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _LockService_ReleaseLock_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+func _ClientService_ReleaseLock_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(ReleaseLockRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(LockServiceServer).ReleaseLock(ctx, in)
+		return srv.(ClientServiceServer).ReleaseLock(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/proto.LockService/ReleaseLock",
+		FullMethod: "/proto.ClientService/ReleaseLock",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(LockServiceServer).ReleaseLock(ctx, req.(*ReleaseLockRequest))
+		return srv.(ClientServiceServer).ReleaseLock(ctx, req.(*ReleaseLockRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-// LockService_ServiceDesc is the grpc.ServiceDesc for LockService service.
+// ClientService_ServiceDesc is the grpc.ServiceDesc for ClientService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
-var LockService_ServiceDesc = grpc.ServiceDesc{
-	ServiceName: "proto.LockService",
-	HandlerType: (*LockServiceServer)(nil),
+var ClientService_ServiceDesc = grpc.ServiceDesc{
+	ServiceName: "proto.ClientService",
+	HandlerType: (*ClientServiceServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
 			MethodName: "AcquireLock",
-			Handler:    _LockService_AcquireLock_Handler,
+			Handler:    _ClientService_AcquireLock_Handler,
 		},
 		{
 			MethodName: "ReleaseLock",
-			Handler:    _LockService_ReleaseLock_Handler,
+			Handler:    _ClientService_ReleaseLock_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

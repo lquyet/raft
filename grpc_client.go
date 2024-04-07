@@ -49,7 +49,7 @@ func (l *GrpcLockClient) SendAcquireLockRequest(request *proto.AcquireLockReques
 		}
 	}
 
-	grpcExternalClient := proto.NewLockServiceClient(l.conn)
+	grpcExternalClient := proto.NewClientServiceClient(l.conn)
 	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(l.timeout)*time.Millisecond)
 	defer cancel()
 
@@ -70,7 +70,7 @@ func (l *GrpcLockClient) SendReleaseLockRequest(request *proto.ReleaseLockReques
 		}
 	}
 
-	grpcExternalClient := proto.NewLockServiceClient(l.conn)
+	grpcExternalClient := proto.NewClientServiceClient(l.conn)
 	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(l.timeout)*time.Millisecond)
 	defer cancel()
 

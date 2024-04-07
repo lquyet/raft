@@ -8,29 +8,44 @@ import (
 	"net"
 	"os"
 	"os/signal"
+	"strconv"
 	"sync"
 	"syscall"
 	"time"
 )
 
 type ClientCommService struct {
-	proto.UnimplementedLockServiceServer
+	ch chan string
+	proto.UnimplementedClientServiceServer
+	proto.UnimplementedRequestServiceServer
+}
+
+func (g *ClientCommService) SendRequest(ctx context.Context, request *proto.Req) (*proto.Resp, error) {
+	fmt.Println("----- Got SendRequest request -----")
+	g.ch <- "SendRequest: " + request.GetKey() + " | " + request.GetValue()
+	return &proto.Resp{Status: "done"}, nil
 }
 
 func (g *ClientCommService) AcquireLock(ctx context.Context, request *proto.AcquireLockRequest) (*proto.AcquireLockResponse, error) {
 	fmt.Println("----- Got AcquireLock request -----")
 	fmt.Println("LockId: ", request.LockId)
+
+	g.ch <- "Acquire: " + strconv.Itoa(int(request.GetLockId()))
 	return &proto.AcquireLockResponse{LockId: 1}, nil
 }
 
 func (g *ClientCommService) ReleaseLock(ctx context.Context, request *proto.ReleaseLockRequest) (*proto.ReleaseLockResponse, error) {
 	fmt.Println("----- Got ReleaseLock request -----")
 	fmt.Println("LockId: ", request.LockId)
+
+	g.ch <- "Release: " + strconv.Itoa(int(request.GetLockId()))
 	return &proto.ReleaseLockResponse{LockId: 1}, nil
 }
 
-func NewClientCommService() *ClientCommService {
-	return &ClientCommService{}
+func NewClientCommService(queue chan string) *ClientCommService {
+	return &ClientCommService{
+		ch: queue,
+	}
 }
 
 func StartServer(baseServer *grpc.Server) {
