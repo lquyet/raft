@@ -37,7 +37,7 @@ func NewRaftServiceClient(cc grpc.ClientConnInterface) RaftServiceClient {
 
 func (c *raftServiceClient) AppendEntries(ctx context.Context, in *AppendEntriesRequest, opts ...grpc.CallOption) (*AppendEntriesResponse, error) {
 	out := new(AppendEntriesResponse)
-	err := c.cc.Invoke(ctx, "/proto.RaftService/appendEntries", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/proto.RaftService/AppendEntries", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -46,7 +46,7 @@ func (c *raftServiceClient) AppendEntries(ctx context.Context, in *AppendEntries
 
 func (c *raftServiceClient) RequestVote(ctx context.Context, in *RequestVoteRequest, opts ...grpc.CallOption) (*RequestVoteResponse, error) {
 	out := new(RequestVoteResponse)
-	err := c.cc.Invoke(ctx, "/proto.RaftService/requestVote", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/proto.RaftService/RequestVote", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -55,7 +55,7 @@ func (c *raftServiceClient) RequestVote(ctx context.Context, in *RequestVoteRequ
 
 func (c *raftServiceClient) JoinCluster(ctx context.Context, in *JoinClusterRequest, opts ...grpc.CallOption) (*JoinClusterResponse, error) {
 	out := new(JoinClusterResponse)
-	err := c.cc.Invoke(ctx, "/proto.RaftService/joinCluster", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/proto.RaftService/JoinCluster", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -108,7 +108,7 @@ func _RaftService_AppendEntries_Handler(srv interface{}, ctx context.Context, de
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/proto.RaftService/appendEntries",
+		FullMethod: "/proto.RaftService/AppendEntries",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(RaftServiceServer).AppendEntries(ctx, req.(*AppendEntriesRequest))
@@ -126,7 +126,7 @@ func _RaftService_RequestVote_Handler(srv interface{}, ctx context.Context, dec 
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/proto.RaftService/requestVote",
+		FullMethod: "/proto.RaftService/RequestVote",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(RaftServiceServer).RequestVote(ctx, req.(*RequestVoteRequest))
@@ -144,7 +144,7 @@ func _RaftService_JoinCluster_Handler(srv interface{}, ctx context.Context, dec 
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/proto.RaftService/joinCluster",
+		FullMethod: "/proto.RaftService/JoinCluster",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(RaftServiceServer).JoinCluster(ctx, req.(*JoinClusterRequest))
@@ -160,15 +160,15 @@ var RaftService_ServiceDesc = grpc.ServiceDesc{
 	HandlerType: (*RaftServiceServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
-			MethodName: "appendEntries",
+			MethodName: "AppendEntries",
 			Handler:    _RaftService_AppendEntries_Handler,
 		},
 		{
-			MethodName: "requestVote",
+			MethodName: "RequestVote",
 			Handler:    _RaftService_RequestVote_Handler,
 		},
 		{
-			MethodName: "joinCluster",
+			MethodName: "JoinCluster",
 			Handler:    _RaftService_JoinCluster_Handler,
 		},
 	},

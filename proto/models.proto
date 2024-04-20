@@ -2,55 +2,44 @@ syntax = "proto3";
 package proto;
 option go_package = "github.com/lquyet/distributed-lock/proto";
 
-message AcquireLockRequest {
-  int32 lockId = 1;
-}
-
-message AcquireLockResponse {
-  int32 lockId = 1;
-}
-
-message ReleaseLockRequest {
-  int32 lockId = 1;
-}
-
-message ReleaseLockResponse {
-  int32 lockId = 1;
+message LogEntry {
+  int32 term = 1;
+  string command = 2;
 }
 
 message AppendEntriesRequest {
-  uint32 term = 1;
-  uint32 leaderId = 2;
-  uint32 prevLogIndex = 3;
-  uint32 prevLogTerm = 4;
-  repeated string entries = 5;
-  uint32 leaderCommit = 6;
+  int32 term = 1; // the leader's term
+  int32 leaderId = 2; // the leader's id, so followers can tell the client who the leader is, OR, redirect request to leader
+  int32 prevLogIndex = 3; // index of log entry immediately preceding new ones
+  int32 prevLogTerm = 4; // term of prevLogIndex entry
+  repeated LogEntry entries = 5; // log entries to store (empty for heartbeat, may send more than one for efficiency)
+  int32 leaderCommit = 6; // leader's commitIndex
 }
 
 message AppendEntriesResponse {
-  uint32 term = 1;
-  bool success = 2;
+  int32 term = 1; // current term, for leader to update itself
+  bool success = 2; // true if follower contained entry matching prevLogIndex and prevLogTerm
 }
 
 message RequestVoteRequest {
-  uint32 term = 1;
-  uint32 candidateId = 2;
-  uint32 lastLogIndex = 3;
-  uint32 lastLogTerm = 4;
+  int32 term = 1; // candidate's term
+  int32 candidateId = 2; // candidate requesting vote
+  int32 lastLogIndex = 3; // index of candidate's last log entry
+  int32 lastLogTerm = 4; // term of candidate's last log entry
 }
 
 message RequestVoteResponse {
-  uint32 term = 1;
-  bool voteGranted = 2;
+  int32 term = 1; // current term, for candidate to update itself
+  bool voteGranted = 2; // true means candidate received vote
 }
 
 message JoinClusterRequest {
-  uint32 id = 1;
+  int32 id = 1;
   string addr = 2;
 }
 
 message JoinClusterResponse {
-  uint32 id = 1;
-  repeated uint32 ids = 2;
+  int32 id = 1;
+  repeated int32 ids = 2;
   repeated string addrs = 3;
 }

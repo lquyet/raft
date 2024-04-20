@@ -6,7 +6,7 @@ option go_package = "github.com/lquyet/distributed-lock/proto";
 import "models.proto";
 
 service RaftService {
-  rpc appendEntries(AppendEntriesRequest) returns (AppendEntriesResponse);
-  rpc requestVote(RequestVoteRequest) returns (RequestVoteResponse);
-  rpc joinCluster(JoinClusterRequest) returns (JoinClusterResponse);
+  rpc AppendEntries(AppendEntriesRequest) returns (AppendEntriesResponse);
+  rpc RequestVote(RequestVoteRequest) returns (RequestVoteResponse);
+  rpc JoinCluster(JoinClusterRequest) returns (JoinClusterResponse);
 }
