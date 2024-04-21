@@ -43,3 +43,11 @@ message JoinClusterResponse {
   repeated int32 ids = 2;
   repeated string addrs = 3;
 }
+
+message SubmitRequest {
+  string command = 1;
+}
+
+message SubmitResponse {
+  bool success = 1;
+}

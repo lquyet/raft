@@ -381,3 +381,17 @@ func (rm *RaftModule) RequestVote(ctx context.Context, request *proto.RequestVot
 	rm.dlog("RequestVote response: %+v", response)
 	return &response, nil
 }
+
+func (rm *RaftModule) Submit(ctx context.Context, request *proto.SubmitRequest) (*proto.SubmitResponse, error) {
+	rm.mu.Lock()
+	defer rm.mu.Unlock()
+
+	rm.dlog("Submit incoming request: %+v", request)
+	if rm.state == Leader {
+		rm.log = append(rm.log, proto.LogEntry{Term: rm.currentTerm, Command: request.Command})
+		rm.dlog("... log is now: %v", rm.log)
+		return &proto.SubmitResponse{Success: true}, nil
+	}
+
+	return &proto.SubmitResponse{Success: false}, nil
+}

@@ -25,6 +25,7 @@ type RaftServiceClient interface {
 	AppendEntries(ctx context.Context, in *AppendEntriesRequest, opts ...grpc.CallOption) (*AppendEntriesResponse, error)
 	RequestVote(ctx context.Context, in *RequestVoteRequest, opts ...grpc.CallOption) (*RequestVoteResponse, error)
 	JoinCluster(ctx context.Context, in *JoinClusterRequest, opts ...grpc.CallOption) (*JoinClusterResponse, error)
+	Submit(ctx context.Context, in *SubmitRequest, opts ...grpc.CallOption) (*SubmitResponse, error)
 }
 
 type raftServiceClient struct {
@@ -62,6 +63,15 @@ func (c *raftServiceClient) JoinCluster(ctx context.Context, in *JoinClusterRequ
 	return out, nil
 }
 
+func (c *raftServiceClient) Submit(ctx context.Context, in *SubmitRequest, opts ...grpc.CallOption) (*SubmitResponse, error) {
+	out := new(SubmitResponse)
+	err := c.cc.Invoke(ctx, "/proto.RaftService/Submit", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // RaftServiceServer is the server API for RaftService service.
 // All implementations must embed UnimplementedRaftServiceServer
 // for forward compatibility
@@ -69,6 +79,7 @@ type RaftServiceServer interface {
 	AppendEntries(context.Context, *AppendEntriesRequest) (*AppendEntriesResponse, error)
 	RequestVote(context.Context, *RequestVoteRequest) (*RequestVoteResponse, error)
 	JoinCluster(context.Context, *JoinClusterRequest) (*JoinClusterResponse, error)
+	Submit(context.Context, *SubmitRequest) (*SubmitResponse, error)
 	mustEmbedUnimplementedRaftServiceServer()
 }
 
@@ -84,6 +95,9 @@ func (UnimplementedRaftServiceServer) RequestVote(context.Context, *RequestVoteR
 }
 func (UnimplementedRaftServiceServer) JoinCluster(context.Context, *JoinClusterRequest) (*JoinClusterResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method JoinCluster not implemented")
+}
+func (UnimplementedRaftServiceServer) Submit(context.Context, *SubmitRequest) (*SubmitResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method Submit not implemented")
 }
 func (UnimplementedRaftServiceServer) mustEmbedUnimplementedRaftServiceServer() {}
 
@@ -152,6 +166,24 @@ func _RaftService_JoinCluster_Handler(srv interface{}, ctx context.Context, dec 
 	return interceptor(ctx, in, info, handler)
 }
 
+func _RaftService_Submit_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(SubmitRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(RaftServiceServer).Submit(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/proto.RaftService/Submit",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(RaftServiceServer).Submit(ctx, req.(*SubmitRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // RaftService_ServiceDesc is the grpc.ServiceDesc for RaftService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -170,6 +202,10 @@ var RaftService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "JoinCluster",
 			Handler:    _RaftService_JoinCluster_Handler,
+		},
+		{
+			MethodName: "Submit",
+			Handler:    _RaftService_Submit_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
