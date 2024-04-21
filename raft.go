@@ -55,8 +55,8 @@ type RaftModule struct {
 	electionResetEvent time.Time
 
 	// Volatile state on leaders
-	nextIndex  map[int32]int
-	matchIndex map[int32]int
+	nextIndex  map[int32]int32
+	matchIndex map[int32]int32
 }
 
 func (rm *RaftModule) dlog(format string, args ...interface{}) {
@@ -98,14 +98,71 @@ func (rm *RaftModule) lastLogIndexAndTerm() (int32, int32) {
 }
 
 func (rm *RaftModule) leaderSendHeartbeats() {
+	rm.mu.Lock()
+	if rm.state != Leader {
+		rm.mu.Unlock()
+		return
+	}
 
+	savedCurrentTerm := rm.currentTerm
+	rm.mu.Unlock()
+
+	for _, peerId := range rm.peerIds {
+		go func(peerId int32) {
+			rm.mu.Lock()
+			ni := rm.nextIndex[peerId]
+			prevLogIndex := ni - 1
+			prevLogTerm := ToInt32(-1)
+			if prevLogIndex >= 0 {
+				prevLogTerm = rm.log[prevLogIndex].Term
+			}
+			entries := rm.log[ni:]
+
+			request := proto.AppendEntriesRequest{
+				Term:         savedCurrentTerm,
+				LeaderId:     rm.id,
+				PrevLogIndex: prevLogIndex,
+				PrevLogTerm:  prevLogTerm,
+				Entries:      EntriesValueToPointer(entries),
+				LeaderCommit: rm.commitIndex,
+			}
+			rm.mu.Unlock()
+
+			rm.dlog("sending AppendEntries to %d: ni=%d, entries=%v", peerId, ni, entries)
+			response, err := rm.server.peerClients[peerId].AppendEntries(context.Background(), &request)
+			if err != nil {
+				return
+			}
+
+			rm.mu.Lock()
+			defer rm.mu.Unlock()
+			if response.Term > rm.currentTerm {
+				rm.dlog("term out of date in heartbeat response")
+				rm.becomeFollower(response.Term)
+				return
+			}
+
+			if rm.state == Leader && savedCurrentTerm == response.Term {
+				if response.Success {
+					rm.nextIndex[peerId] = ni + ToInt32(len(entries))
+					rm.matchIndex[peerId] = rm.nextIndex[peerId] - 1
+					rm.dlog("AppendEntries successful: peer=%d, nextIndex=%d, matchIndex=%d", peerId, rm.nextIndex[peerId], rm.matchIndex[peerId])
+
+					// TODO: commit logic
+				} else {
+					rm.nextIndex[peerId] = ni - 1
+					rm.dlog("AppendEntries not successful: peer=%d, nextIndex=%d", peerId, rm.nextIndex[peerId])
+				}
+			}
+		}(peerId)
+	}
 }
 
 func (rm *RaftModule) startLeader() {
 	rm.state = Leader
 
 	for _, peerId := range rm.peerIds {
-		rm.nextIndex[peerId] = len(rm.log)
+		rm.nextIndex[peerId] = ToInt32(len(rm.log))
 		rm.matchIndex[peerId] = -1
 	}
 	rm.dlog("becomes Leader; term=%d, nextIndex=%v, matchIndex=%v", rm.currentTerm, rm.nextIndex, rm.matchIndex)
