@@ -189,7 +189,7 @@ func (rm *RaftModule) startLeader() {
 
 func (rm *RaftModule) startElection() {
 	rm.state = Candidate
-	rm.currentTerm++
+	rm.currentTerm += 1
 	savedCurrentTerm := rm.currentTerm
 	rm.electionResetEvent = time.Now()
 	rm.votedFor = rm.id
@@ -345,4 +345,39 @@ func (rm *RaftModule) AppendEntries(ctx context.Context, request *proto.AppendEn
 	reply.Term = rm.currentTerm
 	rm.dlog("AppendEntries response: %+v", reply)
 	return &reply, nil
+}
+
+func (rm *RaftModule) RequestVote(ctx context.Context, request *proto.RequestVoteRequest) (*proto.RequestVoteResponse, error) {
+	rm.mu.Lock()
+	defer rm.mu.Unlock()
+
+	if rm.state == Dead {
+		return nil, nil
+	}
+
+	lastLogIndex, lastLogTerm := rm.lastLogIndexAndTerm()
+	rm.dlog("RequestVote incoming request: %+v, lastLogIndex=%d, lastLogTerm=%d", request, lastLogIndex, lastLogTerm)
+
+	response := proto.RequestVoteResponse{}
+
+	if request.Term > rm.currentTerm {
+		rm.dlog("RequestVote request receive has higher term then rm term")
+		rm.dlog("... become follower")
+		rm.becomeFollower(request.Term)
+	}
+
+	if rm.currentTerm == request.Term &&
+		(rm.votedFor == -1 || rm.votedFor == request.CandidateId) &&
+		(request.LastLogTerm > lastLogTerm || (request.LastLogTerm == lastLogTerm && request.LastLogIndex >= lastLogIndex)) {
+		rm.dlog("... granting vote")
+		response.VoteGranted = true
+		rm.votedFor = request.CandidateId
+		rm.electionResetEvent = time.Now()
+	} else {
+		rm.dlog("... rejecting vote")
+		response.VoteGranted = false
+	}
+	response.Term = rm.currentTerm
+	rm.dlog("RequestVote response: %+v", response)
+	return &response, nil
 }
