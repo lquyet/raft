@@ -395,3 +395,29 @@ func (rm *RaftModule) Submit(ctx context.Context, request *proto.SubmitRequest) 
 
 	return &proto.SubmitResponse{Success: false}, nil
 }
+
+func NewRaftModule(id int32, peerIds []int32, server *Server, ready <-chan interface{}) *RaftModule {
+	rm := RaftModule{}
+	rm.id = id
+	rm.peerIds = peerIds
+	rm.server = server
+	rm.state = Follower
+	rm.commitIndex = -1
+	rm.lastApplied = -1
+	rm.currentTerm = 0
+	rm.votedFor = -1
+	rm.log = make([]proto.LogEntry, 0, 10)
+	rm.nextIndex = make(map[int32]int32)
+	rm.matchIndex = make(map[int32]int32)
+
+	go func() {
+		<-ready
+		rm.mu.Lock()
+		rm.electionResetEvent = time.Now()
+		rm.mu.Unlock()
+		rm.runElectionTimer()
+	}()
+
+	// TODO: handle commit channel here
+	return &rm
+}
