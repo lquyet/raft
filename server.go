@@ -11,9 +11,9 @@ import (
 type Server struct {
 	mu sync.Mutex
 
-	id          int32                              // Node identifier
-	peerIds     []int32                            // List of peers in cluster
-	peerClients map[int32]*proto.RaftServiceClient // RPC clients to peers
+	id          int32                             // Node identifier
+	peerIds     []int32                           // List of peers in cluster
+	peerClients map[int32]proto.RaftServiceClient // RPC clients to peers
 
 	raftModule *RaftModule // The consensus module
 

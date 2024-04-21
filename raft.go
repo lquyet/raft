@@ -97,6 +97,39 @@ func (rm *RaftModule) lastLogIndexAndTerm() (int32, int32) {
 	}
 }
 
+func (rm *RaftModule) leaderSendHeartbeats() {
+
+}
+
+func (rm *RaftModule) startLeader() {
+	rm.state = Leader
+
+	for _, peerId := range rm.peerIds {
+		rm.nextIndex[peerId] = len(rm.log)
+		rm.matchIndex[peerId] = -1
+	}
+	rm.dlog("becomes Leader; term=%d, nextIndex=%v, matchIndex=%v", rm.currentTerm, rm.nextIndex, rm.matchIndex)
+
+	go func() {
+		ticker := time.NewTicker(50 * time.Millisecond)
+		defer ticker.Stop()
+
+		// Send periodic heartbeats, as long as still leader.
+		for {
+			rm.leaderSendHeartbeats()
+			<-ticker.C
+
+			rm.mu.Lock()
+			if rm.state != Leader {
+				rm.mu.Unlock()
+				return
+			}
+			rm.mu.Unlock()
+		}
+	}()
+
+}
+
 func (rm *RaftModule) startElection() {
 	rm.state = Candidate
 	rm.currentTerm++
@@ -121,10 +154,40 @@ func (rm *RaftModule) startElection() {
 			}
 
 			rm.dlog("sending RequestVote to %d: %+v", peerId, request)
-			response, err := rm.server.peerClient[peerId].RequestVote(context.Background(), &request)
+			response, err := rm.server.peerClients[peerId].RequestVote(context.Background(), &request)
+			if err != nil {
+				return
+			}
 
-		}
+			rm.mu.Lock()
+			defer rm.mu.Unlock()
+			rm.dlog("received RequestVoteResponse: %+v", response)
+
+			if rm.state != Candidate {
+				rm.dlog("while waiting for reply, state=%s", rm.state)
+				return
+			}
+
+			if response.Term > savedCurrentTerm {
+				rm.dlog("term out of date in RequestVoteResponse")
+				rm.becomeFollower(response.Term)
+				return
+			} else if response.Term == savedCurrentTerm {
+				if response.VoteGranted {
+					voteReceived++
+					rm.dlog("votes: %d", voteReceived)
+					if voteReceived*2 > len(rm.peerIds)+1 {
+						rm.dlog("wins election with %d votes", voteReceived)
+						rm.startLeader()
+						return
+					}
+				}
+			}
+
+		}(peerId)
 	}
+
+	go rm.runElectionTimer()
 }
 
 func (rm *RaftModule) runElectionTimer() {
