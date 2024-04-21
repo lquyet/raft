@@ -1,9 +1,13 @@
 package main
 
-import distributed_lock "github.com/lquyet/distributed-lock"
+import (
+	"fmt"
+	distributed_lock "github.com/lquyet/distributed-lock"
+)
 
 func main() {
-	_ = distributed_lock.NewRaftCluster(3)
+	rc := distributed_lock.NewRaftCluster(3)
 	c := make(chan struct{})
 	<-c
+	fmt.Println(rc)
 }

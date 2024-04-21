@@ -1,6 +1,8 @@
 package distributed_lock
 
-import "fmt"
+import (
+	"fmt"
+)
 
 type RaftCluster struct {
 	Cluster      []*Server
