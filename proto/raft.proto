@@ -9,4 +9,5 @@ service RaftService {
   rpc AppendEntries(AppendEntriesRequest) returns (AppendEntriesResponse);
   rpc RequestVote(RequestVoteRequest) returns (RequestVoteResponse);
   rpc JoinCluster(JoinClusterRequest) returns (JoinClusterResponse);
+  rpc Submit(SubmitRequest) returns (SubmitResponse);
 }
