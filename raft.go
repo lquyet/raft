@@ -244,6 +244,11 @@ func (rm *RaftModule) startElection() {
 		}(peerId)
 	}
 
+	// Handle a special case when there is only one server in the cluster
+	if len(rm.peerIds) == 0 && rm.state == Candidate {
+		rm.startLeader()
+	}
+
 	go rm.runElectionTimer()
 }
 
@@ -413,9 +418,11 @@ func NewRaftModule(id int32, peerIds []int32, server *Server, ready <-chan inter
 	go func() {
 		<-ready
 		rm.mu.Lock()
+		fmt.Println("initializing RaftModule")
 		rm.electionResetEvent = time.Now()
 		rm.mu.Unlock()
 		rm.runElectionTimer()
+		rm.dlog("ran election timer")
 	}()
 
 	// TODO: handle commit channel here

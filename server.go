@@ -23,7 +23,7 @@ type Server struct {
 	peerAddrs   map[int32]string                  // Map of peer IDs to network addresses
 	peerClients map[int32]proto.RaftServiceClient // RPC clients to peers
 
-	ready <-chan interface{} // Channel to signal when the server is ready to start
+	ready chan interface{} // Channel to signal when the server is ready to start
 
 	raftModule *RaftModule // The consensus module
 
@@ -34,7 +34,11 @@ type Server struct {
 	proto.UnimplementedRaftServiceServer
 }
 
-func NewServer(serverId int32, peerIds []int32, peerAddrs map[int32]string, ready <-chan interface{}, addr string) *Server {
+func (s *Server) Submit(ctx context.Context, in *proto.SubmitRequest) (*proto.SubmitResponse, error) {
+	return s.raftModule.Submit(ctx, in)
+}
+
+func NewServer(serverId int32, peerIds []int32, peerAddrs map[int32]string, ready chan interface{}, addr string) *Server {
 	s := Server{}
 	s.id = serverId
 	s.peerIds = peerIds
@@ -69,6 +73,8 @@ func (s *Server) Serve() {
 		}
 		fmt.Println("Shutdown gRPC server successfully")
 	}()
+
+	//close(s.ready)
 
 	stop := make(chan os.Signal, 1)
 	signal.Notify(stop, os.Interrupt, syscall.SIGTERM)
