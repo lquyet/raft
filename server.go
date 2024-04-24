@@ -5,6 +5,7 @@ import (
 	"fmt"
 	proto "github.com/lquyet/distributed-lock/pb"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 	"net"
 	"os"
 	"os/signal"
@@ -38,6 +39,14 @@ func (s *Server) Submit(ctx context.Context, in *proto.SubmitRequest) (*proto.Su
 	return s.raftModule.Submit(ctx, in)
 }
 
+func (s *Server) RequestVote(ctx context.Context, in *proto.RequestVoteRequest) (*proto.RequestVoteResponse, error) {
+	return s.raftModule.RequestVote(ctx, in)
+}
+
+func (s *Server) AppendEntries(ctx context.Context, in *proto.AppendEntriesRequest) (*proto.AppendEntriesResponse, error) {
+	return s.raftModule.AppendEntries(ctx, in)
+}
+
 func NewServer(serverId int32, peerIds []int32, peerAddrs map[int32]string, ready chan interface{}, addr string) *Server {
 	s := Server{}
 	s.id = serverId
@@ -45,6 +54,7 @@ func NewServer(serverId int32, peerIds []int32, peerAddrs map[int32]string, read
 	s.peerAddrs = peerAddrs
 	s.ready = ready
 	s.addr = addr
+	s.peerClients = make(map[int32]proto.RaftServiceClient)
 	return &s
 }
 
@@ -87,4 +97,18 @@ func (s *Server) Serve() {
 	s.grpcServer.GracefulStop()
 
 	wg.Wait()
+}
+
+func (s *Server) ConnectToPeer(peerId int32) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if _, found := s.peerClients[peerId]; !found {
+		conn, err := grpc.Dial(s.peerAddrs[peerId], grpc.WithTransportCredentials(insecure.NewCredentials()))
+		if err != nil {
+			return err
+		}
+		s.peerClients[peerId] = proto.NewRaftServiceClient(conn)
+	}
+	return nil
 }
