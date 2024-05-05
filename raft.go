@@ -22,6 +22,12 @@ const (
 	Dead
 )
 
+type CommitEntry struct {
+	Command interface{}
+	Index   int32
+	Term    int32
+}
+
 type RaftModule struct {
 	// mutex to protect shared resources in concurrent environment
 	mu sync.Mutex
@@ -36,27 +42,26 @@ type RaftModule struct {
 	server *Server
 
 	// commitChan channel to report committed entries to the server
-	// TODO: implement commit entry struct and add to channel. NOT USED YET
-	commitChan chan<- any
+	// To be clear, the state machine subscribes to this channel and executes commands from entries in order.
+	commitChan chan<- CommitEntry
 
 	// newCommitReady channel to report new committed entries to the server
-	// TODO: same as above
-	newCommitReadyChan chan interface{}
+	newCommitReadyChan chan struct{}
 
 	// Persistent raft state on all servers
-	currentTerm int32
-	votedFor    int32
-	log         []proto.LogEntry
+	currentTerm int32            // the latest term server has seen (init to 0 on first boot, increases monotonically)
+	votedFor    int32            // candidateId that received vote in current term (or null if none)
+	log         []proto.LogEntry // log entries; each entry contains command for state machine, and term when entry was received by leader
 
 	// Volatile state on all servers
-	commitIndex        int32
-	lastApplied        int32
-	state              RaftState
-	electionResetEvent time.Time
+	commitIndex        int32     // index of highest log entry known to be committed (init to 0, increases monotonically)
+	lastApplied        int32     // index of highest log entry applied to state machine (init to 0, increases monotonically)
+	state              RaftState // whether the server is a follower, candidate, or leader
+	electionResetEvent time.Time // time of the last election reset
 
-	// Volatile state on leaders
-	nextIndex  map[int32]int32
-	matchIndex map[int32]int32
+	// Volatile state on leaders (reinitialized after election)
+	nextIndex  map[int32]int32 // for each server, index of the next log entry to send to that server (initialized to leader last log index + 1)
+	matchIndex map[int32]int32 // for each server, index of highest log entry known to be replicated on server
 }
 
 func (rm *RaftModule) dlog(format string, args ...interface{}) {
@@ -148,7 +153,25 @@ func (rm *RaftModule) leaderSendHeartbeats() {
 					rm.matchIndex[peerId] = rm.nextIndex[peerId] - 1
 					rm.dlog("AppendEntries successful: peer=%d, nextIndex=%d, matchIndex=%d", peerId, rm.nextIndex[peerId], rm.matchIndex[peerId])
 
-					// TODO: commit logic
+					savedCommitIndex := rm.commitIndex
+					for i := rm.commitIndex + 1; i < int32(len(rm.log)); i++ {
+						if rm.log[i].Term == rm.currentTerm {
+							count := 1
+							for _, pid := range rm.peerIds {
+								if rm.matchIndex[pid] >= i {
+									count++
+								}
+							}
+							if count*2 > len(rm.peerIds)+1 {
+								savedCommitIndex = i
+							}
+						}
+					}
+
+					if savedCommitIndex != rm.commitIndex {
+						rm.dlog("new commit detected: ", savedCommitIndex)
+						rm.newCommitReadyChan <- struct{}{}
+					}
 				} else {
 					rm.nextIndex[peerId] = ni - 1
 					rm.dlog("AppendEntries not successful: peer=%d, nextIndex=%d", peerId, rm.nextIndex[peerId])
@@ -401,6 +424,31 @@ func (rm *RaftModule) Submit(ctx context.Context, request *proto.SubmitRequest) 
 	return &proto.SubmitResponse{Success: false}, nil
 }
 
+func (rm *RaftModule) commitChanHandler() {
+	for range rm.newCommitReadyChan {
+		rm.mu.Lock()
+		savedTerm := rm.currentTerm
+		savedLastApplied := rm.lastApplied
+
+		var entries []proto.LogEntry
+		if rm.commitIndex > rm.lastApplied {
+			entries = rm.log[rm.lastApplied+1 : rm.commitIndex+1]
+			rm.lastApplied = rm.commitIndex
+		}
+		rm.mu.Unlock()
+		rm.dlog("commitChanHandler: entries=%v", entries)
+		rm.dlog("savedTerm=%d, savedLastApplied=%d", savedTerm, savedLastApplied)
+
+		for i := range entries {
+			rm.commitChan <- CommitEntry{
+				Command: entries[i].Command,
+				Index:   savedLastApplied + int32(i) + 1,
+				Term:    savedTerm,
+			}
+		}
+	}
+}
+
 func NewRaftModule(id int32, peerIds []int32, server *Server, ready <-chan interface{}) *RaftModule {
 	rm := RaftModule{}
 	rm.id = id
@@ -425,6 +473,6 @@ func NewRaftModule(id int32, peerIds []int32, server *Server, ready <-chan inter
 		rm.dlog("ran election timer")
 	}()
 
-	// TODO: handle commit channel here
+	go rm.commitChanHandler()
 	return &rm
 }
