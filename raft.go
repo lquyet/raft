@@ -2,16 +2,16 @@ package distributed_lock
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	proto "github.com/lquyet/distributed-lock/pb"
 	"log"
 	"math/rand"
-	"os"
 	"sync"
 	"time"
 )
 
-const DebugMode = 1
+const DebugMode = 0
 
 type RaftState int
 
@@ -43,7 +43,8 @@ type RaftModule struct {
 
 	// commitChan channel to report committed entries to the server
 	// To be clear, the state machine subscribes to this channel and executes commands from entries in order.
-	commitChan chan<- CommitEntry
+	//commitChan chan<- CommitEntry
+	commitChan chan CommitEntry
 
 	// newCommitReady channel to report new committed entries to the server
 	newCommitReadyChan chan struct{}
@@ -86,11 +87,11 @@ func (rm *RaftModule) electionTimeout() time.Duration {
 	// If RAFT_FORCE_MORE_REELECTION is set, stress-test by deliberately
 	// generating a hard-coded number very often. This will create collisions
 	// between different servers and force more re-elections.
-	if len(os.Getenv("RAFT_FORCE_MORE_REELECTION")) > 0 && rand.Intn(3) == 0 {
-		return time.Duration(150) * time.Millisecond
-	} else {
-		return time.Duration(150+rand.Intn(150)) * time.Millisecond
-	}
+	//if len(os.Getenv("RAFT_FORCE_MORE_REELECTION")) > 0 && rand.Intn(3) == 0 {
+	//	return time.Duration(150) * time.Millisecond
+	//} else {
+	return time.Duration(150+rand.Intn(150)) * time.Millisecond
+	//}
 }
 
 func (rm *RaftModule) lastLogIndexAndTerm() (int32, int32) {
@@ -163,18 +164,18 @@ func (rm *RaftModule) leaderSendHeartbeats() {
 								}
 							}
 							if count*2 > len(rm.peerIds)+1 {
-								savedCommitIndex = i
+								rm.commitIndex = i
 							}
 						}
 					}
 
 					if savedCommitIndex != rm.commitIndex {
-						rm.dlog("new commit detected: ", savedCommitIndex)
+						rm.dlog("new commit detected: ", rm.commitIndex)
 						rm.newCommitReadyChan <- struct{}{}
 					}
 				} else {
 					rm.nextIndex[peerId] = ni - 1
-					rm.dlog("AppendEntries not successful: peer=%d, nextIndex=%d", peerId, rm.nextIndex[peerId])
+					rm.dlog("AppendEntries not successful: peer=%d, nextIndex=%d", peerId, ni-1)
 				}
 			}
 		}(peerId)
@@ -267,10 +268,10 @@ func (rm *RaftModule) startElection() {
 		}(peerId)
 	}
 
-	// Handle a special case when there is only one server in the cluster
-	if len(rm.peerIds) == 0 && rm.state == Candidate {
-		rm.startLeader()
-	}
+	//// Handle a special case when there is only one server in the cluster
+	//if len(rm.peerIds) == 0 && rm.state == Candidate {
+	//	rm.startLeader()
+	//}
 
 	go rm.runElectionTimer()
 }
@@ -311,12 +312,14 @@ func (rm *RaftModule) runElectionTimer() {
 	}
 }
 
+var NodeDead = errors.New("Node is DEAD")
+
 func (rm *RaftModule) AppendEntries(ctx context.Context, request *proto.AppendEntriesRequest) (*proto.AppendEntriesResponse, error) {
 	rm.mu.Lock()
 	defer rm.mu.Unlock()
 
 	if rm.state == Dead {
-		return nil, nil
+		return nil, NodeDead
 	}
 	rm.dlog("AppendEntries incoming request: %+v", request)
 
@@ -463,10 +466,12 @@ func NewRaftModule(id int32, peerIds []int32, server *Server, ready <-chan inter
 	rm.nextIndex = make(map[int32]int32)
 	rm.matchIndex = make(map[int32]int32)
 
+	rm.commitChan = make(chan CommitEntry)
+	rm.newCommitReadyChan = make(chan struct{}, 16)
+
 	go func() {
 		<-ready
 		rm.mu.Lock()
-		fmt.Println("initializing RaftModule")
 		rm.electionResetEvent = time.Now()
 		rm.mu.Unlock()
 		rm.runElectionTimer()
@@ -475,4 +480,21 @@ func NewRaftModule(id int32, peerIds []int32, server *Server, ready <-chan inter
 
 	go rm.commitChanHandler()
 	return &rm
+}
+
+func (rm *RaftModule) GetCommitChannel() *chan CommitEntry {
+	return &rm.commitChan
+}
+
+func (rm *RaftModule) Stop() {
+	rm.mu.Lock()
+	defer rm.mu.Unlock()
+	rm.state = Dead
+	rm.dlog("Node shutting down")
+}
+
+func (rm *RaftModule) GetInfo() (id int32, term int32, isLeader bool) {
+	rm.mu.Lock()
+	defer rm.mu.Unlock()
+	return rm.id, rm.currentTerm, rm.state == Leader
 }

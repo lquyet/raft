@@ -1,7 +1,0 @@
-servers:
-  address: ["127.0.0.1:8000", "127.0.0.1:8001", "127.0.0.1:8002"]
-client:
-  id: "client_1"
-params:
-  grpc_timeout: 1000 # in milliseconds
-
