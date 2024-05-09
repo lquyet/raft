@@ -1,9 +1,9 @@
-package distributed_lock
+package raft
 
 import (
 	"context"
 	"fmt"
-	proto "github.com/lquyet/distributed-lock/pb"
+	proto "github.com/lquyet/raft/pb"
 	"strconv"
 	"sync"
 	"testing"

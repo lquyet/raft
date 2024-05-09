@@ -1,4 +1,4 @@
-package distributed_lock
+package raft
 
 import (
 	"github.com/fortytw2/leaktest"

@@ -1,9 +1,9 @@
-package distributed_lock
+package raft
 
 import (
 	"context"
 	"fmt"
-	proto "github.com/lquyet/distributed-lock/pb"
+	proto "github.com/lquyet/raft/pb"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 	"net"

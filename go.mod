@@ -1,4 +1,4 @@
-module github.com/lquyet/distributed-lock
+module github.com/lquyet/raft
 
 go 1.21
 
