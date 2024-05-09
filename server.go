@@ -72,9 +72,7 @@ func (s *Server) Serve() {
 	s.grpcServer = grpc.NewServer()
 	proto.RegisterRaftServiceServer(s.grpcServer, s)
 
-	var wg sync.WaitGroup
-
-	s.wg = wg
+	s.wg = sync.WaitGroup{}
 	s.wg.Add(1)
 	go func() {
 		defer s.wg.Done()
