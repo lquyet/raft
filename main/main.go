@@ -2,7 +2,7 @@ package main
 
 import (
 	"fmt"
-	raft "github.com/lquyet/raft"
+	raft "github.com/lquyet/raft/test"
 )
 
 func main() {

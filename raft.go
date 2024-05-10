@@ -55,7 +55,7 @@ type RaftModule struct {
 	log         []proto.LogEntry // log entries; each entry contains command for state machine, and term when entry was received by leader
 
 	// Volatile state on all servers
-	commitIndex        int32     // index of highest log entry known to be committed (init to 0, increases monotonically)
+	CommitIndex        int32     // index of highest log entry known to be committed (init to 0, increases monotonically)
 	lastApplied        int32     // index of highest log entry applied to state machine (init to 0, increases monotonically)
 	state              RaftState // whether the server is a follower, candidate, or leader
 	electionResetEvent time.Time // time of the last election reset
@@ -130,7 +130,7 @@ func (rm *RaftModule) leaderSendHeartbeats() {
 				PrevLogIndex: prevLogIndex,
 				PrevLogTerm:  prevLogTerm,
 				Entries:      EntriesValueToPointer(entries),
-				LeaderCommit: rm.commitIndex,
+				LeaderCommit: rm.CommitIndex,
 			}
 			rm.mu.Unlock()
 
@@ -154,8 +154,8 @@ func (rm *RaftModule) leaderSendHeartbeats() {
 					rm.matchIndex[peerId] = rm.nextIndex[peerId] - 1
 					rm.dlog("AppendEntries successful: peer=%d, nextIndex=%d, matchIndex=%d", peerId, rm.nextIndex[peerId], rm.matchIndex[peerId])
 
-					savedCommitIndex := rm.commitIndex
-					for i := rm.commitIndex + 1; i < int32(len(rm.log)); i++ {
+					savedCommitIndex := rm.CommitIndex
+					for i := rm.CommitIndex + 1; i < int32(len(rm.log)); i++ {
 						if rm.log[i].Term == rm.currentTerm {
 							count := 1
 							for _, pid := range rm.peerIds {
@@ -164,13 +164,13 @@ func (rm *RaftModule) leaderSendHeartbeats() {
 								}
 							}
 							if count*2 > len(rm.peerIds)+1 {
-								rm.commitIndex = i
+								rm.CommitIndex = i
 							}
 						}
 					}
 
-					if savedCommitIndex != rm.commitIndex {
-						rm.dlog("new commit detected: ", rm.commitIndex)
+					if savedCommitIndex != rm.CommitIndex {
+						rm.dlog("new commit detected: ", rm.CommitIndex)
 						rm.newCommitReadyChan <- struct{}{}
 					}
 				} else {
@@ -365,9 +365,9 @@ func (rm *RaftModule) AppendEntries(ctx context.Context, request *proto.AppendEn
 				rm.dlog("... log is now: %v", rm.log)
 			}
 
-			if request.LeaderCommit > rm.commitIndex {
-				rm.commitIndex = min(request.LeaderCommit, int32(len(rm.log))-1)
-				rm.dlog("... setting commitIndex=%d", rm.commitIndex)
+			if request.LeaderCommit > rm.CommitIndex {
+				rm.CommitIndex = min(request.LeaderCommit, int32(len(rm.log))-1)
+				rm.dlog("... setting commitIndex=%d", rm.CommitIndex)
 				rm.newCommitReadyChan <- struct{}{}
 			}
 		}
@@ -434,9 +434,9 @@ func (rm *RaftModule) commitChanHandler() {
 		savedLastApplied := rm.lastApplied
 
 		var entries []proto.LogEntry
-		if rm.commitIndex > rm.lastApplied {
-			entries = rm.log[rm.lastApplied+1 : rm.commitIndex+1]
-			rm.lastApplied = rm.commitIndex
+		if rm.CommitIndex > rm.lastApplied {
+			entries = rm.log[rm.lastApplied+1 : rm.CommitIndex+1]
+			rm.lastApplied = rm.CommitIndex
 		}
 		rm.mu.Unlock()
 		rm.dlog("commitChanHandler: entries=%v", entries)
@@ -458,7 +458,7 @@ func NewRaftModule(id int32, peerIds []int32, server *Server, ready <-chan inter
 	rm.peerIds = peerIds
 	rm.server = server
 	rm.state = Follower
-	rm.commitIndex = -1
+	rm.CommitIndex = -1
 	rm.lastApplied = -1
 	rm.currentTerm = 0
 	rm.votedFor = -1

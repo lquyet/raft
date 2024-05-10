@@ -1,8 +1,9 @@
-package raft
+package test
 
 import (
 	"context"
 	"fmt"
+	"github.com/lquyet/raft"
 	proto "github.com/lquyet/raft/pb"
 	"strconv"
 	"sync"
@@ -11,19 +12,19 @@ import (
 )
 
 type RaftCluster struct {
-	Cluster      []*Server
+	Cluster      []*raft.Server
 	NumOfServers int
 	Connected    []bool
 
 	mu          *sync.Mutex
-	commits     [][]CommitEntry
-	commitChans []chan CommitEntry
+	commits     [][]raft.CommitEntry
+	commitChans []chan raft.CommitEntry
 
 	t *testing.T
 }
 
 func NewRaftCluster(n int, t *testing.T) *RaftCluster {
-	ns := make([]*Server, n)
+	ns := make([]*raft.Server, n)
 	ready := make(chan interface{})
 	connected := make([]bool, n)
 
@@ -37,7 +38,7 @@ func NewRaftCluster(n int, t *testing.T) *RaftCluster {
 			}
 		}
 		fmt.Println(peerIds, peerAddrs)
-		ns[i] = NewServer(int32(i), peerIds, peerAddrs, ready, "localhost:"+fmt.Sprintf("%d", 8080+i))
+		ns[i] = raft.NewServer(int32(i), peerIds, peerAddrs, ready, "localhost:"+fmt.Sprintf("%d", 8080+i))
 		go func(i int) {
 			ns[i].Serve()
 		}(i)
@@ -54,14 +55,14 @@ func NewRaftCluster(n int, t *testing.T) *RaftCluster {
 	}
 
 	// Getting all commit channels
-	commitChans := make([]chan CommitEntry, n)
+	commitChans := make([]chan raft.CommitEntry, n)
 	for i := 0; i < n; i++ {
 		commitChans[i] = *ns[i].GetRaftModule().GetCommitChannel()
 	}
 
 	// We need a place to save the commits
 	// Basically we just look for all commits in commitChan and push them here
-	commits := make([][]CommitEntry, n)
+	commits := make([][]raft.CommitEntry, n)
 
 	close(ready)
 
@@ -269,7 +270,7 @@ func (rc *RaftCluster) CheckNotCommitted(cmd int) {
 	}
 }
 
-func sleepMs(n int) {
+func SleepMs(n int) {
 	time.Sleep(time.Duration(n) * time.Millisecond)
 }
 
