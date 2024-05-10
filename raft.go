@@ -11,7 +11,8 @@ import (
 	"time"
 )
 
-const DebugMode = 0
+const DEBUG = "debug"
+const PRODUCTION = "production"
 
 type RaftState int
 
@@ -41,6 +42,9 @@ type RaftModule struct {
 	// server containing this Raft Module, to issue RPC calls
 	server *Server
 
+	// mode (debug or production) represents different log levels. Debug mode prints everything.
+	mode string
+
 	// commitChan channel to report committed entries to the server
 	// To be clear, the state machine subscribes to this channel and executes commands from entries in order.
 	//commitChan chan<- CommitEntry
@@ -66,7 +70,7 @@ type RaftModule struct {
 }
 
 func (rm *RaftModule) dlog(format string, args ...interface{}) {
-	if DebugMode > 0 {
+	if rm.mode == DEBUG {
 		format = fmt.Sprintf("[%d] ", rm.id) + format
 		log.Printf(format, args...)
 	}
@@ -78,7 +82,7 @@ func (rm *RaftModule) becomeFollower(term int32) {
 	rm.currentTerm = term
 	rm.votedFor = -1
 	rm.electionResetEvent = time.Now()
-	rm.dlog("becoming a FOLLOWER")
+	rm.dlog("becomes Follower")
 
 	go rm.runElectionTimer()
 }
@@ -189,7 +193,7 @@ func (rm *RaftModule) startLeader() {
 		rm.nextIndex[peerId] = ToInt32(len(rm.log))
 		rm.matchIndex[peerId] = -1
 	}
-	rm.dlog("becomes Leader; term=%d, nextIndex=%v, matchIndex=%v", rm.currentTerm, rm.nextIndex, rm.matchIndex)
+	rm.dlog("becomes Leader ; term=%d, nextIndex=%v, matchIndex=%v", rm.currentTerm, rm.nextIndex, rm.matchIndex)
 
 	go func() {
 		ticker := time.NewTicker(50 * time.Millisecond)
@@ -234,7 +238,7 @@ func (rm *RaftModule) startElection() {
 				LastLogTerm:  savedLastLogTerm,
 			}
 
-			rm.dlog("sending RequestVote to %d: %+v", peerId, request)
+			rm.dlog("sending RequestVote to %d: %+v", peerId, request.String())
 			response, err := rm.server.peerClients[peerId].RequestVote(context.Background(), &request)
 			if err != nil {
 				return
@@ -242,7 +246,7 @@ func (rm *RaftModule) startElection() {
 
 			rm.mu.Lock()
 			defer rm.mu.Unlock()
-			rm.dlog("received RequestVoteResponse: %+v", response)
+			rm.dlog("received RequestVoteResponse: %+v", response.String())
 
 			if rm.state != Candidate {
 				rm.dlog("while waiting for reply, state=%s", rm.state)
@@ -321,11 +325,11 @@ func (rm *RaftModule) AppendEntries(ctx context.Context, request *proto.AppendEn
 	if rm.state == Dead {
 		return nil, NodeDead
 	}
-	rm.dlog("AppendEntries incoming request: %+v", request)
+	rm.dlog("AppendEntries incoming request: %+v", request.String())
 
 	if request.Term > rm.currentTerm {
 		rm.dlog("AppendEntries request receive has higher term then rm term")
-		rm.dlog("... become follower")
+		rm.dlog("... becomes Follower")
 		rm.becomeFollower(request.Term)
 	}
 
@@ -374,7 +378,7 @@ func (rm *RaftModule) AppendEntries(ctx context.Context, request *proto.AppendEn
 	}
 
 	reply.Term = rm.currentTerm
-	rm.dlog("AppendEntries response: %+v", reply)
+	rm.dlog("AppendEntries response: %+v", reply.String())
 	return &reply, nil
 }
 
@@ -393,7 +397,7 @@ func (rm *RaftModule) RequestVote(ctx context.Context, request *proto.RequestVot
 
 	if request.Term > rm.currentTerm {
 		rm.dlog("RequestVote request receive has higher term then rm term")
-		rm.dlog("... become follower")
+		rm.dlog("... becomes Follower")
 		rm.becomeFollower(request.Term)
 	}
 
@@ -409,7 +413,7 @@ func (rm *RaftModule) RequestVote(ctx context.Context, request *proto.RequestVot
 		response.VoteGranted = false
 	}
 	response.Term = rm.currentTerm
-	rm.dlog("RequestVote response: %+v", response)
+	rm.dlog("RequestVote response: %+v", response.String())
 	return &response, nil
 }
 
@@ -417,7 +421,7 @@ func (rm *RaftModule) Submit(ctx context.Context, request *proto.SubmitRequest) 
 	rm.mu.Lock()
 	defer rm.mu.Unlock()
 
-	rm.dlog("Submit incoming request: %+v", request)
+	rm.dlog("Submit incoming request: %+v", request.String())
 	if rm.state == Leader {
 		rm.log = append(rm.log, proto.LogEntry{Term: rm.currentTerm, Command: request.Command})
 		rm.dlog("... log is now: %v", rm.log)
@@ -468,6 +472,9 @@ func NewRaftModule(id int32, peerIds []int32, server *Server, ready <-chan inter
 
 	rm.commitChan = make(chan CommitEntry)
 	rm.newCommitReadyChan = make(chan struct{}, 16)
+
+	//rm.mode = server.config.Mode
+	rm.mode = DEBUG
 
 	go func() {
 		<-ready

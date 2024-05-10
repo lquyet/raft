@@ -3,6 +3,7 @@ package raft
 import (
 	"context"
 	"fmt"
+	"github.com/lquyet/raft/config"
 	proto "github.com/lquyet/raft/pb"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
@@ -11,7 +12,6 @@ import (
 	"os/signal"
 	"sync"
 	"syscall"
-	"time"
 )
 
 // Server holds references to set up a Raft Node
@@ -27,6 +27,8 @@ type Server struct {
 
 	ready chan interface{} // Channel to signal when the server is ready to start
 	stop  chan os.Signal
+
+	config config.Config
 
 	wg sync.WaitGroup
 
@@ -64,6 +66,22 @@ func NewServer(serverId int32, peerIds []int32, peerAddrs map[int32]string, read
 	return &s
 }
 
+func NewServerWithConfigFile(configName string, configType string, ready chan interface{}) *Server {
+	s := Server{}
+
+	s.config = config.Load(configName, configType)
+
+	s.id = s.config.Server.Id
+	s.peerIds = s.config.Server.PeerIds
+	s.peerAddrs = s.config.Server.PeerAddresses
+	s.ready = ready
+	s.addr = s.config.Server.Address
+	s.peerClients = make(map[int32]proto.RaftServiceClient)
+	s.peerClientConns = make(map[int32]*grpc.ClientConn)
+	s.mu = sync.Mutex{}
+	return &s
+}
+
 func (s *Server) Serve() {
 	s.mu.Lock()
 	s.raftModule = NewRaftModule(s.id, s.peerIds, s, s.ready)
@@ -82,7 +100,7 @@ func (s *Server) Serve() {
 			panic(err)
 		}
 
-		fmt.Println("Server started at", s.addr)
+		//fmt.Println("Server started at", s.addr)
 		err = s.grpcServer.Serve(listener)
 		if err != nil {
 			panic(err)
@@ -92,14 +110,9 @@ func (s *Server) Serve() {
 
 	//close(s.ready)
 
-	stop := make(chan os.Signal, 1)
-	s.stop = stop
+	s.stop = make(chan os.Signal, 1)
 	signal.Notify(s.stop, os.Interrupt, syscall.SIGTERM)
 	<-s.stop
-
-	ctx := context.Background()
-	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
-	defer cancel()
 
 	s.grpcServer.GracefulStop()
 }
@@ -142,9 +155,6 @@ func (s *Server) DisconnectAll() {
 	defer s.mu.Unlock()
 
 	for id := range s.peerClients {
-		//if s.peerClients[id] != nil {
-		//	s.peerClients[id] = nil
-		//}
 		s.peerClientConns[id].Close()
 	}
 }
@@ -154,7 +164,6 @@ func (s *Server) DisconnectPeer(peerId int32) error {
 	defer s.mu.Unlock()
 
 	if s.peerClients[peerId] != nil {
-		//s.peerClients[peerId] = nil
 		s.peerClientConns[peerId].Close()
 	}
 	return nil
