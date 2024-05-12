@@ -1,30 +1,35 @@
-package test
+package raft
 
 import (
 	"context"
 	"fmt"
-	"github.com/lquyet/raft"
 	proto "github.com/lquyet/raft/pb"
-	"strconv"
 	"sync"
 	"testing"
 	"time"
 )
 
 type RaftCluster struct {
-	Cluster      []*raft.Server
+	Cluster      []*Server
 	NumOfServers int
 	Connected    []bool
 
 	mu          *sync.Mutex
-	commits     [][]raft.CommitEntry
-	commitChans []chan raft.CommitEntry
+	commits     [][]CommitEntry
+	commitChans []chan CommitEntry
+
+	// For local env
+	stateMachine StateMachine
+
+	// For benchmark test
+	check int
+	Start time.Time
 
 	t *testing.T
 }
 
-func NewRaftCluster(n int, t *testing.T) *RaftCluster {
-	ns := make([]*raft.Server, n)
+func NewRaftCluster(n int, stateMachine StateMachine, t *testing.T) *RaftCluster {
+	ns := make([]*Server, n)
 	ready := make(chan interface{})
 	connected := make([]bool, n)
 
@@ -38,7 +43,7 @@ func NewRaftCluster(n int, t *testing.T) *RaftCluster {
 			}
 		}
 		fmt.Println(peerIds, peerAddrs)
-		ns[i] = raft.NewServer(int32(i), peerIds, peerAddrs, ready, "localhost:"+fmt.Sprintf("%d", 8080+i))
+		ns[i] = NewServer(int32(i), peerIds, peerAddrs, ready, "localhost:"+fmt.Sprintf("%d", 8080+i))
 		go func(i int) {
 			ns[i].Serve()
 		}(i)
@@ -55,14 +60,14 @@ func NewRaftCluster(n int, t *testing.T) *RaftCluster {
 	}
 
 	// Getting all commit channels
-	commitChans := make([]chan raft.CommitEntry, n)
+	commitChans := make([]chan CommitEntry, n)
 	for i := 0; i < n; i++ {
 		commitChans[i] = *ns[i].GetRaftModule().GetCommitChannel()
 	}
 
 	// We need a place to save the commits
 	// Basically we just look for all commits in commitChan and push them here
-	commits := make([][]raft.CommitEntry, n)
+	commits := make([][]CommitEntry, n)
 
 	close(ready)
 
@@ -75,7 +80,11 @@ func NewRaftCluster(n int, t *testing.T) *RaftCluster {
 		commits:     commits,
 		commitChans: commitChans,
 
+		stateMachine: stateMachine,
+
 		t: t,
+
+		check: 0,
 	}
 
 	for i := 0; i < n; i++ {
@@ -87,10 +96,10 @@ func NewRaftCluster(n int, t *testing.T) *RaftCluster {
 
 func (rc *RaftCluster) Shutdown() {
 	// Disconnect all pairs of servers
-	for i := 0; i < rc.NumOfServers; i++ {
-		rc.Cluster[i].DisconnectAll()
-		rc.Connected[i] = false
-	}
+	//for i := 0; i < rc.NumOfServers; i++ {
+	//	rc.Cluster[i].DisconnectAll()
+	//	rc.Connected[i] = false
+	//}
 
 	// Shutdown all servers
 	for i := 0; i < rc.NumOfServers; i++ {
@@ -99,9 +108,9 @@ func (rc *RaftCluster) Shutdown() {
 }
 
 // Submit submits a command to a server in the cluster.
-func (rc *RaftCluster) Submit(serverId int32, cmd int) bool {
+func (rc *RaftCluster) Submit(serverId int32, cmd string) bool {
 	res, err := rc.Cluster[serverId].GetRaftModule().Submit(context.Background(), &proto.SubmitRequest{
-		Command: strconv.Itoa(cmd),
+		Command: cmd,
 	})
 	if err != nil {
 		rc.t.Error(err)
@@ -179,12 +188,12 @@ func (rc *RaftCluster) CheckNoLeader() {
 // // the commit sequence match. For this to work properly, all commands submitted
 // // to Raft should be unique positive integers.
 // Parameters:
-// cmd (int): The command to check if it has been committed.
+// cmd (string): The command to check if it has been committed.
 //
 // Returns:
 // nc (int32): The number of connected servers that have the command committed.
 // index (int32): The index at which the command is committed. If the command is not found, it returns -1.
-func (rc *RaftCluster) CheckCommitted(cmd int) (nc int32, index int32) {
+func (rc *RaftCluster) CheckCommitted(cmd string) (nc int32, index int32) {
 	rc.mu.Lock()
 	defer rc.mu.Unlock()
 
@@ -219,7 +228,7 @@ func (rc *RaftCluster) CheckCommitted(cmd int) (nc int32, index int32) {
 				}
 			}
 		}
-		if cmdAtC == strconv.Itoa(cmd) {
+		if cmdAtC == cmd {
 			// Check consistency of Index.
 			var index int32 = -1
 			var nc int32 = 0
@@ -239,13 +248,13 @@ func (rc *RaftCluster) CheckCommitted(cmd int) (nc int32, index int32) {
 
 	// If there's no early return, we haven't found the command we were looking
 	// for.
-	rc.t.Errorf("cmd=%d not found in commits", cmd)
+	rc.t.Errorf("cmd=%s not found in commits", cmd)
 	return -1, -1
 }
 
 // CheckCommittedN verifies that cmd was committed by exactly n connected
 // servers.
-func (rc *RaftCluster) CheckCommittedN(cmd int, n int) {
+func (rc *RaftCluster) CheckCommittedN(cmd string, n int) {
 	nc, _ := rc.CheckCommitted(cmd)
 	if nc != int32(n) {
 		rc.t.Errorf("CheckCommittedN got nc=%d, want %d", nc, n)
@@ -254,7 +263,7 @@ func (rc *RaftCluster) CheckCommittedN(cmd int, n int) {
 
 // CheckNotCommitted verifies that no command equal to cmd has been committed
 // by any of the active servers yet.
-func (rc *RaftCluster) CheckNotCommitted(cmd int) {
+func (rc *RaftCluster) CheckNotCommitted(cmd string) {
 	rc.mu.Lock()
 	defer rc.mu.Unlock()
 
@@ -262,8 +271,8 @@ func (rc *RaftCluster) CheckNotCommitted(cmd int) {
 		if rc.Connected[i] {
 			for c := 0; c < len(rc.commits[i]); c++ {
 				gotCmd := rc.commits[i][c].Command.(string)
-				if gotCmd == strconv.Itoa(cmd) {
-					rc.t.Errorf("found %d at commits[%d][%d], expected none", cmd, i, c)
+				if gotCmd == cmd {
+					rc.t.Errorf("found %s at commits[%d][%d], expected none", cmd, i, c)
 				}
 			}
 		}
@@ -282,6 +291,26 @@ func (rc *RaftCluster) collectCommits(i int) {
 		rc.mu.Lock()
 		//tlog("collectCommits(%d) got %+v", i, c)
 		rc.commits[i] = append(rc.commits[i], c)
+
+		// For benchmark test only
+		if len(rc.commits[i]) == 100000 {
+			rc.check += 1
+		}
+
+		if rc.check == rc.NumOfServers {
+			duration := time.Since(rc.Start)
+			fmt.Println("Successfully commit in: ", duration.Milliseconds(), " milliseconds!")
+		}
+
+		// Apply to state machine
+		if rc.stateMachine != nil {
+			err := rc.stateMachine.Apply(c)
+			rc.Cluster[i].GetRaftModule().dlog("Apply to state machine: ", c.Command)
+			if err != nil {
+				fmt.Printf("Error applying committed entry to state machine: %s", c.Command.(string))
+			}
+		}
+
 		rc.mu.Unlock()
 	}
 }

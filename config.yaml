@@ -1,0 +1,14 @@
+# config.yaml
+server:
+  id: 1
+  address: "localhost:8080"
+  peerIds: [ 2, 3 ]
+  peerAddresses:
+    2: "localhost:8081"
+    3: "localhost:8082"
+
+raft:
+  electionTimeoutBase: 150 # in milliseconds
+  heartbeatInterval: 50 # in milliseconds
+
+mode: debug # debug, production
