@@ -24,3 +24,6 @@ run:
 test:
 	go test -p 1 -v ./...
 
+log-test:
+	cd test && go test -v -run $(test-name) | tee ./../visual/$(test-name)
+	cd visual && go run main.go < $(test-name)
