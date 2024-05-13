@@ -7,6 +7,7 @@ import (
 	proto "github.com/lquyet/raft/pb"
 	"log"
 	"math/rand"
+	"os"
 	"sync"
 	"time"
 )
@@ -88,14 +89,11 @@ func (rm *RaftModule) becomeFollower(term int32) {
 }
 
 func (rm *RaftModule) electionTimeout() time.Duration {
-	// If RAFT_FORCE_MORE_REELECTION is set, stress-test by deliberately
-	// generating a hard-coded number very often. This will create collisions
-	// between different servers and force more re-elections.
-	//if len(os.Getenv("RAFT_FORCE_MORE_REELECTION")) > 0 && rand.Intn(3) == 0 {
-	//	return time.Duration(150) * time.Millisecond
-	//} else {
+	// 50% chance of same election timeout in case flag RAFT_FORCE_MORE_REELECTION is set
+	if len(os.Getenv("RAFT_FORCE_MORE_REELECTION")) > 0 && rand.Intn(2) == 0 {
+		return time.Duration(150) * time.Millisecond
+	}
 	return time.Duration(150+rand.Intn(150)) * time.Millisecond
-	//}
 }
 
 func (rm *RaftModule) lastLogIndexAndTerm() (int32, int32) {
