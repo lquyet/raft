@@ -60,7 +60,7 @@ func NewServer(serverId int32, peerIds []int32, peerAddrs map[int32]string, read
 
 func (s *Server) Serve() {
 	s.mu.Lock()
-	s.raftModule = NewRaftModule(s.id, s.peerIds, s, s.ready)
+	s.raftModule = NewRaftModule(s.id, s.peerIds, s, s.ready, new(StateMachine))
 	s.mu.Unlock()
 
 	s.grpcServer = grpc.NewServer()
