@@ -41,10 +41,6 @@ type RaftModule struct {
 	// server containing this Raft Module, to issue RPC calls
 	server *Server
 
-	// stateMachine is an interface to execute committed commands.
-	// This pattern utilizes the dependency inversion principle allowing user to easily customize the state machine logic
-	stateMachine StateMachine
-
 	// commitChan channel to report committed entries to the server
 	// To be clear, the state machine subscribes to this channel and executes commands from entries in order.
 	commitChan chan<- CommitEntry
@@ -453,7 +449,7 @@ func (rm *RaftModule) commitChanHandler() {
 	}
 }
 
-func NewRaftModule(id int32, peerIds []int32, server *Server, ready <-chan interface{}, stateMachine StateMachine) *RaftModule {
+func NewRaftModule(id int32, peerIds []int32, server *Server, ready <-chan interface{}) *RaftModule {
 	rm := RaftModule{}
 	rm.id = id
 	rm.peerIds = peerIds
@@ -466,8 +462,6 @@ func NewRaftModule(id int32, peerIds []int32, server *Server, ready <-chan inter
 	rm.log = make([]proto.LogEntry, 0, 10)
 	rm.nextIndex = make(map[int32]int32)
 	rm.matchIndex = make(map[int32]int32)
-
-	rm.stateMachine = stateMachine
 
 	go func() {
 		<-ready
