@@ -18,13 +18,17 @@ import (
 type Server struct {
 	mu sync.Mutex
 
-	id          int32                             // Node identifier
-	addr        string                            // Address of this server
-	peerIds     []int32                           // List of peers in cluster
-	peerAddrs   map[int32]string                  // Map of peer IDs to network addresses
-	peerClients map[int32]proto.RaftServiceClient // RPC clients to peers
+	id              int32                             // Node identifier
+	addr            string                            // Address of this server
+	peerIds         []int32                           // List of peers in cluster
+	peerAddrs       map[int32]string                  // Map of peer IDs to network addresses
+	peerClients     map[int32]proto.RaftServiceClient // RPC clients to peers
+	peerClientConns map[int32]*grpc.ClientConn
 
 	ready chan interface{} // Channel to signal when the server is ready to start
+	stop  chan os.Signal
+
+	wg sync.WaitGroup
 
 	raftModule *RaftModule // The consensus module
 
@@ -55,6 +59,8 @@ func NewServer(serverId int32, peerIds []int32, peerAddrs map[int32]string, read
 	s.ready = ready
 	s.addr = addr
 	s.peerClients = make(map[int32]proto.RaftServiceClient)
+	s.peerClientConns = make(map[int32]*grpc.ClientConn)
+	s.mu = sync.Mutex{}
 	return &s
 }
 
@@ -67,9 +73,11 @@ func (s *Server) Serve() {
 	proto.RegisterRaftServiceServer(s.grpcServer, s)
 
 	var wg sync.WaitGroup
-	wg.Add(1)
+
+	s.wg = wg
+	s.wg.Add(1)
 	go func() {
-		defer wg.Done()
+		defer s.wg.Done()
 
 		listener, err := net.Listen("tcp", s.addr)
 		if err != nil {
@@ -87,28 +95,69 @@ func (s *Server) Serve() {
 	//close(s.ready)
 
 	stop := make(chan os.Signal, 1)
-	signal.Notify(stop, os.Interrupt, syscall.SIGTERM)
-	<-stop
+	s.stop = stop
+	signal.Notify(s.stop, os.Interrupt, syscall.SIGTERM)
+	<-s.stop
 
 	ctx := context.Background()
 	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
 
 	s.grpcServer.GracefulStop()
-
-	wg.Wait()
 }
 
 func (s *Server) ConnectToPeer(peerId int32) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	if _, found := s.peerClients[peerId]; !found {
-		conn, err := grpc.Dial(s.peerAddrs[peerId], grpc.WithTransportCredentials(insecure.NewCredentials()))
-		if err != nil {
-			return err
-		}
-		s.peerClients[peerId] = proto.NewRaftServiceClient(conn)
+	//if _, found := s.peerClients[peerId]; !found {
+	//	conn, err := grpc.Dial(s.peerAddrs[peerId], grpc.WithTransportCredentials(insecure.NewCredentials()))
+	//	if err != nil {
+	//		return err
+	//	}
+	//	s.peerClients[peerId] = proto.NewRaftServiceClient(conn)
+	//	s.peerClientConns[peerId] = conn
+	//}
+
+	conn, err := grpc.Dial(s.peerAddrs[peerId], grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
+		return err
+	}
+	s.peerClients[peerId] = proto.NewRaftServiceClient(conn)
+	s.peerClientConns[peerId] = conn
+
+	return nil
+}
+
+func (s *Server) GetRaftModule() *RaftModule {
+	return s.raftModule
+}
+
+func (s *Server) Shutdown() {
+	s.stop <- syscall.SIGTERM
+	s.wg.Wait()
+	s.raftModule.Stop()
+}
+
+func (s *Server) DisconnectAll() {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	for id := range s.peerClients {
+		//if s.peerClients[id] != nil {
+		//	s.peerClients[id] = nil
+		//}
+		s.peerClientConns[id].Close()
+	}
+}
+
+func (s *Server) DisconnectPeer(peerId int32) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if s.peerClients[peerId] != nil {
+		//s.peerClients[peerId] = nil
+		s.peerClientConns[peerId].Close()
 	}
 	return nil
 }

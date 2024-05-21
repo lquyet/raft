@@ -3,6 +3,7 @@ module github.com/lquyet/distributed-lock
 go 1.21
 
 require (
+	github.com/fortytw2/leaktest v1.3.0
 	google.golang.org/grpc v1.62.1
 	google.golang.org/protobuf v1.33.0
 )
