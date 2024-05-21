@@ -1,4 +1,4 @@
-package raft
+package test
 
 import (
 	"github.com/fortytw2/leaktest"
@@ -20,7 +20,7 @@ func TestElectionLeaderDisconnect(t *testing.T) {
 	origLeaderId, origTerm := rc.CheckSingleLeader()
 
 	rc.DisconnectPeers(origLeaderId)
-	sleepMs(350)
+	SleepMs(350)
 
 	newLeaderId, newTerm := rc.CheckSingleLeader()
 	if newLeaderId == origLeaderId {
@@ -42,7 +42,7 @@ func TestElectionLeaderAndAnotherDisconnect(t *testing.T) {
 	rc.DisconnectPeers(otherId)
 
 	// No quorum.
-	sleepMs(450)
+	SleepMs(450)
 	rc.CheckNoLeader()
 
 	// Reconnect one other server; now we'll have quorum.
@@ -54,12 +54,12 @@ func TestDisconnectAllThenRestore(t *testing.T) {
 	rc := NewRaftCluster(3, t)
 	defer rc.Shutdown()
 
-	sleepMs(100)
+	SleepMs(100)
 	//	Disconnect all servers from the start. There will be no leader.
 	for i := 0; i < 3; i++ {
 		rc.DisconnectPeers(int32(i))
 	}
-	sleepMs(450)
+	SleepMs(450)
 	rc.CheckNoLeader()
 
 	// Reconnect all servers. A leader will be found.
@@ -76,11 +76,11 @@ func TestElectionLeaderDisconnectThenReconnect(t *testing.T) {
 
 	rc.DisconnectPeers(origLeaderId)
 
-	sleepMs(350)
+	SleepMs(350)
 	newLeaderId, newTerm := rc.CheckSingleLeader()
 
 	rc.ReconnectPeers(origLeaderId)
-	sleepMs(150)
+	SleepMs(150)
 
 	againLeaderId, againTerm := rc.CheckSingleLeader()
 
@@ -101,11 +101,11 @@ func TestElectionLeaderDisconnectThenReconnect5(t *testing.T) {
 	origLeaderId, _ := rc.CheckSingleLeader()
 
 	rc.DisconnectPeers(origLeaderId)
-	sleepMs(150)
+	SleepMs(150)
 	newLeaderId, newTerm := rc.CheckSingleLeader()
 
 	rc.ReconnectPeers(origLeaderId)
-	sleepMs(150)
+	SleepMs(150)
 
 	againLeaderId, againTerm := rc.CheckSingleLeader()
 
@@ -129,7 +129,7 @@ func TestElectionFollowerComesBack(t *testing.T) {
 	rc.DisconnectPeers(otherId)
 	time.Sleep(650 * time.Millisecond)
 	rc.ReconnectPeers(otherId)
-	sleepMs(150)
+	SleepMs(150)
 
 	// We can't have an assertion on the new leader id here because it depends
 	// on the relative election timeouts. We can assert that the term changed,
@@ -154,7 +154,7 @@ func TestCommitOneCommand(t *testing.T) {
 		t.Errorf("want id=%d leader, but it's not", origLeaderId)
 	}
 
-	sleepMs(500)
+	SleepMs(500)
 	rc.CheckCommittedN(42, 3)
 }
 
@@ -169,7 +169,7 @@ func TestSubmitNonLeaderFails(t *testing.T) {
 	if isLeader {
 		t.Errorf("want id=%d !leader, but it is", sid)
 	}
-	sleepMs(10)
+	SleepMs(10)
 }
 
 func TestCommitMultipleCommands(t *testing.T) {
@@ -185,10 +185,10 @@ func TestCommitMultipleCommands(t *testing.T) {
 		if !isLeader {
 			t.Errorf("want id=%d leader, but it's not", origLeaderId)
 		}
-		sleepMs(300)
+		SleepMs(300)
 	}
 
-	sleepMs(500)
+	SleepMs(500)
 	nc, i1 := rc.CheckCommitted(42)
 	_, i2 := rc.CheckCommitted(55)
 	if nc != 3 {
@@ -211,27 +211,27 @@ func TestCommitWithDisconnectionAndRecover(t *testing.T) {
 	// Submit a couple of values to a fully connected cluster.
 	origLeaderId, _ := rc.CheckSingleLeader()
 	rc.Submit(origLeaderId, 5)
-	sleepMs(50)
+	SleepMs(50)
 	rc.Submit(origLeaderId, 6)
 
-	sleepMs(300)
+	SleepMs(300)
 	rc.CheckCommittedN(6, 3)
 
 	dPeerId := (origLeaderId + 1) % 3
 	rc.DisconnectPeers(dPeerId)
-	sleepMs(300)
+	SleepMs(300)
 
 	// Submit a new command; it will be committed but only to two servers.
 	rc.Submit(origLeaderId, 7)
-	sleepMs(300)
+	SleepMs(300)
 	rc.CheckCommittedN(7, 2)
 
 	// Now reconnect dPeerId and wait a bit; it should find the new command too.
 	rc.ReconnectPeers(dPeerId)
-	sleepMs(300)
+	SleepMs(300)
 	rc.CheckSingleLeader()
 
-	sleepMs(300)
+	SleepMs(300)
 	rc.CheckCommittedN(7, 3)
 }
 
@@ -243,10 +243,10 @@ func TestNoCommitWithNoQuorum(t *testing.T) {
 	// Submit a couple of values to a fully connected cluster.
 	origLeaderId, origTerm := rc.CheckSingleLeader()
 	rc.Submit(origLeaderId, 5)
-	sleepMs(50)
+	SleepMs(50)
 	rc.Submit(origLeaderId, 6)
 
-	sleepMs(300)
+	SleepMs(300)
 	rc.CheckCommittedN(6, 3)
 
 	// Disconnect both followers.
@@ -254,16 +254,16 @@ func TestNoCommitWithNoQuorum(t *testing.T) {
 	dPeer2 := (origLeaderId + 2) % 3
 	rc.DisconnectPeers(dPeer1)
 	rc.DisconnectPeers(dPeer2)
-	sleepMs(300)
+	SleepMs(300)
 
 	rc.Submit(origLeaderId, 8)
-	sleepMs(300)
+	SleepMs(300)
 	rc.CheckNotCommitted(8)
 
 	// Reconnect both other servers, we'll have quorum now.
 	rc.ReconnectPeers(dPeer1)
 	rc.ReconnectPeers(dPeer2)
-	sleepMs(600)
+	SleepMs(600)
 
 	// 8 is still not committed because the term has changed.
 	rc.CheckNotCommitted(8)
@@ -278,11 +278,11 @@ func TestNoCommitWithNoQuorum(t *testing.T) {
 
 	// But new values will be committed for sure...
 	rc.Submit(newLeaderId, 9)
-	sleepMs(50)
+	SleepMs(50)
 	rc.Submit(newLeaderId, 10)
-	sleepMs(50)
+	SleepMs(50)
 	rc.Submit(newLeaderId, 11)
-	sleepMs(350)
+	SleepMs(350)
 
 	for _, v := range []int{9, 10, 11} {
 		rc.CheckCommittedN(v, 3)
@@ -298,33 +298,33 @@ func TestCommitsWithLeaderDisconnects(t *testing.T) {
 	// Submit a couple of values to a fully connected cluster.
 	origLeaderId, _ := rc.CheckSingleLeader()
 	rc.Submit(origLeaderId, 5)
-	sleepMs(50)
+	SleepMs(50)
 	rc.Submit(origLeaderId, 6)
 
-	sleepMs(300)
+	SleepMs(300)
 	rc.CheckCommittedN(6, 5)
 
 	// Leader disconnected...
 	rc.DisconnectPeers(origLeaderId)
-	sleepMs(10)
+	SleepMs(10)
 
 	// Submit 7 to original leader, even though it's disconnected.
 	rc.Submit(origLeaderId, 7)
 
-	sleepMs(300)
+	SleepMs(300)
 	rc.CheckNotCommitted(7)
 
 	newLeaderId, _ := rc.CheckSingleLeader()
 
 	// Submit 8 to new leader.
 	rc.Submit(newLeaderId, 8)
-	sleepMs(300)
+	SleepMs(300)
 	rc.CheckCommittedN(8, 4)
 
 	// Reconnect old leader and let it settle. The old leader shouldn't be the one
 	// winning.
 	rc.ReconnectPeers(origLeaderId)
-	sleepMs(600)
+	SleepMs(600)
 
 	finalLeaderId, _ := rc.CheckSingleLeader()
 	if finalLeaderId == origLeaderId {
@@ -333,11 +333,11 @@ func TestCommitsWithLeaderDisconnects(t *testing.T) {
 
 	// Submit 9 and check it's fully committed.
 	rc.Submit(newLeaderId, 9)
-	sleepMs(150)
+	SleepMs(150)
 	rc.CheckCommittedN(9, 5)
-	sleepMs(150)
+	SleepMs(150)
 	rc.CheckCommittedN(8, 5)
-	sleepMs(150)
+	SleepMs(150)
 
 	// But 7 is not committed...
 	rc.CheckNotCommitted(7)
