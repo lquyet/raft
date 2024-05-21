@@ -479,6 +479,7 @@ func NewRaftModule(id int32, peerIds []int32, server *Server, ready <-chan inter
 	}()
 
 	go rm.commitChanHandler()
+
 	return &rm
 }
 
