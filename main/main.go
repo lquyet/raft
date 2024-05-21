@@ -2,11 +2,11 @@ package main
 
 import (
 	"fmt"
-	distributed_lock "github.com/lquyet/distributed-lock"
+	raft "github.com/lquyet/raft"
 )
 
 func main() {
-	rc := distributed_lock.NewRaftCluster(3)
+	rc := raft.NewRaftCluster(3, nil)
 	c := make(chan struct{})
 	<-c
 	fmt.Println(rc)

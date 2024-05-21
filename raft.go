@@ -1,10 +1,10 @@
-package distributed_lock
+package raft
 
 import (
 	"context"
 	"errors"
 	"fmt"
-	proto "github.com/lquyet/distributed-lock/pb"
+	proto "github.com/lquyet/raft/pb"
 	"log"
 	"math/rand"
 	"sync"

@@ -1,6 +1,6 @@
-package distributed_lock
+package raft
 
-import proto "github.com/lquyet/distributed-lock/pb"
+import proto "github.com/lquyet/raft/pb"
 
 func EntriesPointerToValue(ep []*proto.LogEntry) []proto.LogEntry {
 	var entries []proto.LogEntry

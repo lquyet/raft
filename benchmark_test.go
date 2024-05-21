@@ -1,4 +1,4 @@
-package distributed_lock
+package raft
 
 import (
 	"fmt"
@@ -41,6 +41,7 @@ func TestBenchmarkElection(t *testing.T) {
 		sum += term
 		fmt.Println("Iteration ", i+1, " term: ", term)
 		rc.Shutdown()
+		time.Sleep(3 * time.Second)
 	}
 
 	fmt.Println("Required total term to elect leader in 20 iterations: ", sum)

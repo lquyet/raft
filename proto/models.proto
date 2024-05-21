@@ -1,6 +1,6 @@
 syntax = "proto3";
 package proto;
-option go_package = "github.com/lquyet/distributed-lock/proto";
+option go_package = "github.com/lquyet/raft/proto";
 
 message LogEntry {
   int32 term = 1;
